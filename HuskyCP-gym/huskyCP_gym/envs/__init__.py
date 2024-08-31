@@ -1,0 +1,1 @@
+from huskyCP_gym.envs.huskyCP_gymPathFrenAW import HuskyCPEnvPathFren
