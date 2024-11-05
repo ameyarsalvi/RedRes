@@ -18,7 +18,7 @@ from matplotlib.animation import FuncAnimation
 import os
 
 import sys
-sys.path.insert(0, "/home/asalvi/code_workspace/Husky_CS_SB3/train/")
+sys.path.insert(0, "/home/asalvi/code_workspace/Husky_CS_SB3/PoseEnhancedVN/train/") #Ensure correct path to your 'train' folder
 
 import time
 import math
