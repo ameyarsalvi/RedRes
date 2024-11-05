@@ -24,14 +24,11 @@ from stable_baselines3.common.utils import set_random_seed
 
 import sys
 sys.path.insert(0, "/home/asalvi/code_workspace/Husky_CS_SB3/train/HuskyCP-gym")
-#import huskyCP_gym
 import huskyCP_gym
 
 
 # Create log dir
 import os
-#log_dir = "/home/asalvi/code_workspace/tmp/log0"
-#os.makedirs(log_dir, exist_ok=True)
 
 tmp_path = "/home/asalvi/code_workspace/tmp/sb3_log/VisServo/test/"
 variant = 'test'
@@ -114,7 +111,7 @@ def make_env(env_id, rank, seed=0):
 
 if __name__ == '__main__':
     env_id = "huskyCP_gym/HuskyRL-v0"
-    num_cpu = 8  # Number of processes to use
+    num_cpu = 4  # Number of processes to use
     # Create the vectorized environment
     env = SubprocVecEnv([make_env(env_id, i) for i in range(num_cpu)], start_method='fork')
     env = VecMonitor(env, filename=tmp_path)
