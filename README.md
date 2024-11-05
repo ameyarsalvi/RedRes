@@ -1,6 +1,6 @@
 # Pose Enhanced Learning for Skid-steered visual navigation
 
-something comes here for brief overview
+![Alt text](readme_figures/LatVisSerOverview.jpg)
 
 ## Installations
 1. CoppeliaSim Robotics Simulator
@@ -71,6 +71,7 @@ python3 train_parallel.py
 ![TrainParallel](readme_figures/train.gif)
 
 ### Evaluation
+
 
 
 ## Implementation Details
