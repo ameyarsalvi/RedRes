@@ -61,14 +61,14 @@ variant = 'test' # Save final model by this name
 ```
 ./exec_loop.sh
 ```
-
+![FourSimInstances](readme_figures/sim_instances.gif) 
 
 5. Once all instantces are launched, in another shell, run training script
 ```
 python3 train_parallel.py
 ```
 
-![FourSimInstances](readme_figures/sim_instances.gif) ![TrainParallel](readme_figures/train.gif)
+![TrainParallel](readme_figures/train.gif)
 
 ### Evaluation
 
