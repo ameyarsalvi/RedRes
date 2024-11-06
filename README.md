@@ -68,7 +68,7 @@ variant = 'test' # Save final model by this name
 python3 train_parallel.py
 ```
 
-![TrainParallel](readme_figures/train.gif)
+![TrainParallel](readme_figures/train2.gif)
 
 ### Evaluation
 
