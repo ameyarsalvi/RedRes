@@ -72,7 +72,7 @@ python3 train_parallel.py
 
 ### Evaluation
 
-6. For evaluation of trained models, navigate to the 'evaluation' directory. Within the evaltion directory, update the 'baseEval.py' file to change path to the saved model. Pretrained models used in the paper are availble for download at : 
+6. For evaluation of trained models, navigate to the 'evaluation' directory. Within the evaltion directory, update the 'baseEval.py' file to change path to the saved model. Pretrained models used in the paper are availble for download at : https://drive.google.com/drive/u/1/folders/1uKjiQakRyRJekMSZcmaSau9RZih8Us6l 
 
 ```
 model_path = '/home/asalvi/code_workspace/Husky_CS_SB3/Evaluation/EvalDump/Bsln/bslns2/bslnCnst.zip'
