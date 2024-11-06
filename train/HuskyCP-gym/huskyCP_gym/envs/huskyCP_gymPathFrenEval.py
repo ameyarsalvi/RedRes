@@ -18,7 +18,7 @@ from matplotlib.animation import FuncAnimation
 import os
 
 import sys
-sys.path.insert(0, "/home/asalvi/code_workspace/Husky_CS_SB3/PoseEnhancedVN/train/") #Ensure correct path to your 'train' folder
+sys.path.insert(0, "/home/asalvi/code_workspace/Husky_CS_SB3/train/")
 
 import time
 import math
@@ -37,6 +37,9 @@ class HuskyCPEnvPathFren(Env):
         self.sim.startSimulation()
         #while self.sim.getSimulationState() == self.sim.simulation_stopped:
         #    time.sleep(5)
+
+        self.specific = 'k'
+        #print(self.specif)
 
         self.seed = seed
         self.track_vel = track_vel
@@ -102,39 +105,49 @@ class HuskyCPEnvPathFren(Env):
 
         # Paths
         from numpy import genfromtxt
-        path_loc = '/home/asalvi/code_workspace/Husky_CS_SB3/HuskyModels/MixPathFlip/'
-        #path_loc = '/home/asalvi/Paths/SpacingTest/250_1Pts/'
+        #path_loc = ref_path
+        path_loc = '/home/asalvi/code_workspace/Husky_CS_SB3/PoseEnhancedVN/train/MixPathFlip/'
         self.path1 = genfromtxt(path_loc + 'ArcPath1.csv', delimiter=',')
         self.path2 = genfromtxt(path_loc + 'ArcPath2.csv', delimiter=',')
         self.path3 = genfromtxt(path_loc + 'ArcPath3.csv', delimiter=',')
         self.path4 = genfromtxt(path_loc + 'ArcPath4.csv', delimiter=',')
         self.path5 = genfromtxt(path_loc + 'ArcPath5.csv', delimiter=',')
-        #self.path1_ = genfromtxt(path_loc + 'ArcPath1.csv', delimiter=',')
-        #self.path2_ = genfromtxt(path_loc + 'ArcPath2.csv', delimiter=',')
-        #self.path3_ = genfromtxt(path_loc + 'ArcPath3.csv', delimiter=',')
-        #self.path4_ = genfromtxt(path_loc + 'ArcPath4.csv', delimiter=',')
-        #self.path5_ = genfromtxt(path_loc + 'ArcPath5.csv', delimiter=',')
         self.path1_ = genfromtxt(path_loc + 'ArcPath1_.csv', delimiter=',')
         self.path2_ = genfromtxt(path_loc + 'ArcPath2_.csv', delimiter=',')
         self.path3_ = genfromtxt(path_loc + 'ArcPath3_.csv', delimiter=',')
         self.path4_ = genfromtxt(path_loc + 'ArcPath4_.csv', delimiter=',')
         self.path5_ = genfromtxt(path_loc + 'ArcPath5_.csv', delimiter=',')
         
-        '''
+        
         #log variables
-        self.log_err_feat = []
-        self.log_err_vel = []
-        self.log_err_feat_norm = []
+        #self.log_err_feat = []
+        #self.log_err_vel = []
+        #self.log_err_feat_norm = []
+        #self.log_rel_vel_ang = []
+        #self.log_err_omega = []
+        #self.log_err_omega_norm = []
+        
+        # actions
+        self.log_actV = []
+        self.log_actW = []
+        
+        # tracking objectivs
+        self.log_err_path_norm = []
+        self.log_err_pose_norm = []
         self.log_err_vel_norm = []
+        
+        # realized values
         self.log_rel_vel_lin = []
-        self.log_rel_vel_ang = []
-        self.log_actV = []
-        self.log_actW = []
-        self.log_err_omega = []
-        self.log_err_omega_norm = []
-        '''
-        self.log_actV = []
-        self.log_actW = []
+        self.log_rel_poseX = []
+        self.log_rel_poseY = []
+        
+        # reference values
+        self.log_ref_vel_lin = []
+        self.log_ref_poseX = []
+        self.log_ref_poseY = []
+        self.log_ref_kappa = []
+        
+        
         
 
 
@@ -175,16 +188,18 @@ class HuskyCPEnvPathFren(Env):
         '''       
 
         
+        
         self.GenControl(action)
         
-    
+        
         #Joint Velocities similar to how velocities are set on actual robot
-        #self.sim.setJointTargetVelocity(self.fl_w, self.Left)
-        #self.sim.setJointTargetVelocity(self.fr_w, self.Right)
-        #self.sim.setJointTargetVelocity(self.rl_w, self.Left)
-        #self.sim.setJointTargetVelocity(self.rr_w, self.Right)
+        self.sim.setJointTargetVelocity(self.fl_w, self.Left)
+        self.sim.setJointTargetVelocity(self.fr_w, self.Right)
+        self.sim.setJointTargetVelocity(self.rl_w, self.Left)
+        self.sim.setJointTargetVelocity(self.rr_w, self.Right)
         
-        
+
+        '''
         Fl_w = 6*action[0]
         Fr_w = 6*action[1]
         Rl_w = 6*action[0]
@@ -195,9 +210,8 @@ class HuskyCPEnvPathFren(Env):
         self.sim.setJointTargetVelocity(self.fr_w, Fr_w.item())
         self.sim.setJointTargetVelocity(self.rl_w, Rl_w.item())
         self.sim.setJointTargetVelocity(self.rr_w, Rr_w.item())
-        
-        
-        
+        '''
+
         # Adjust Camera
         #cam_angle = 1*1*self.error # In degrees
         #cam_angle = np.clip(cam_angle,-45,45)
@@ -233,69 +247,80 @@ class HuskyCPEnvPathFren(Env):
         
 
         #print(self.enc_len)
-        if self.throttle > 1:
-            self.enc_len_div = 1*self.enc_len
-            self.enc_len_div = np.clip(self.enc_len_div,1,65)
-        else:
-            self.enc_len_div = 1
+        self.enc_len_div = 1*self.enc_len
+        self.enc_len_div = np.clip(self.enc_len_div,1,65)
         img_obs = self.img_obs
-        #img_obs = np.divide(img_obs,self.enc_len_div)
+        #img_obs = np.divide(img_obs,(self.enc_len_div))
+
         
+        
+        
+
+
         def randomize_pixel_location(image, radius):
-            device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-        
-            # Convert the image to a PyTorch tensor and move it to the GPU
-            image_tensor = torch.tensor(image, device=device, dtype=torch.float32)
-        
-            # Get the shape of the image
-            rows, cols, channels = image_tensor.shape
-        
-            # Generate random angles and distances
-            angles = torch.rand(rows, cols, device=device) * 2 * np.pi
-            distances = torch.rand(rows, cols, device=device) * radius
-        
-            # Calculate the offsets
-            x_offsets = distances * torch.cos(angles)
-            y_offsets = distances * torch.sin(angles)
-        
-            # Create the grid of coordinates
-            x_coords, y_coords = torch.meshgrid(torch.arange(rows, device=device), torch.arange(cols, device=device), indexing='ij')
-        
-            # Calculate the new coordinates
-            new_x = torch.clamp(x_coords + x_offsets, 0, rows - 1).long()
-            new_y = torch.clamp(y_coords + y_offsets, 0, cols - 1).long()
-        
-            # Initialize the randomized image tensor
-            randomized_image = torch.zeros_like(image_tensor)
-        
-            # Apply the new coordinates to get the randomized image
-            for c in range(channels):
-                randomized_image[:, :, c] = image_tensor[new_x, new_y, c]
-        
-            # Move the result back to the CPU and convert to numpy array
-            randomized_image = randomized_image.cpu().numpy().astype(image.dtype)
-        
+            rows, cols, _ = image.shape
+            randomized_image = np.zeros_like(image)
+            
+            for i in range(rows):
+                for j in range(cols):
+                    # Generate random angle and distance within the circle
+                    angle = random.uniform(0, 2 * np.pi)
+                    distance = random.uniform(0, radius)
+                    
+                    # Calculate new position
+                    new_i = int(i + distance * np.cos(angle))
+                    new_j = int(j + distance * np.sin(angle))
+                    
+                    # Ensure new position is within bounds
+                    new_i = np.clip(new_i, 0, rows - 1)
+                    new_j = np.clip(new_j, 0, cols - 1)
+                    
+                    # Assign the pixel value to the new location
+                    randomized_image[new_i, new_j] = image[i, j]
+            
             return randomized_image
 
         # Load the image
         #image = cv2.imread('path_to_your_image.png')
 
         # Set the radius for randomization
-        #radius = 1*self.enc_len_div  # You can adjust this value
-        radius = 1
+        #radius = 5*self.enc_len_div  # You can adjust this value
 
         # Randomize pixel locations
-        randomized_image = randomize_pixel_location(img_obs, radius)
-        
-        torch.cuda.empty_cache()
+        #randomized_image = randomize_pixel_location(img_obs, radius)
+
+        self.state = np.array(img_obs,dtype = np.uint8) #Just input image to CNN network
+        #self.state = np.array(img_obs,0.5)
+        '''
+
+        # Gamma value for non-linear transformation
+        gamma = 2.2  # You can adjust this value
+
+        # Create a color map for shades of orange with non-linear transformation
+        def grayscale_to_orange(value, gamma):
+            # Apply gamma correction
+            corrected_value = (value / 255.0) ** gamma * 255.0
+            corrected_value = np.clip(corrected_value, 0, 255)  # Ensure the value is within range
+            # Map the corrected value to a shade of orange
+            r = 255
+            g = int(corrected_value * 165 / 255)
+            b = 0
+            return [b, g, r] if corrected_value > 0 else [255, 255, 255]
+
         
 
-        #cv2.imshow("obs", img_obs)
-        #cv2.waitKey(1)
+        colored_image = np.zeros((img_obs.shape[0], img_obs.shape[1], 3), dtype=np.uint8)
+        for i in range(img_obs.shape[0]):
+            for j in range(img_obs.shape[1]):
+                colored_image[i, j] = grayscale_to_orange(img_obs[i, j],gamma)
+        '''
         
-        self.state = np.array(randomized_image,dtype = np.uint8) #Just input image to CNN network
-        #self.state = np.array(img_obs,dtype = np.uint8) #Just input image to CNN network
-        #self.state = np.array(img_obs,0.5)
+        #cv2.imshow("Visual Obs", randomized_image)
+        #cv2.waitKey(1)
+
+        #img_path = '/home/asalvi/code_workspace/Husky_CS_SB3/Evaluation/EvalDump/illus_img/'
+
+        #cv2.imwrite(img_path + 'illus_img'+ str(self.step_no)  +'.png', randomized_image)
         
         #self.state['image'] = np.array(img_obs,dtype = np.uint8)
         #self.state['camera_angle'] = np.array(0.5,dtype = np.uint8)
@@ -343,13 +368,14 @@ class HuskyCPEnvPathFren(Env):
         super().reset(seed=self.seed)
 
         # Reset initialization variables
-        self.episode_length = 1000
+        self.episode_length = 5000
         self.step_no = 0
         self.z_ang = []
         self.ArcLen = 0
         self.obs = []
         self.act0_prev =0
         self.act1_prev =0
+        self.refVel = []
 
         self.camActPrev = 0
         self.camErrPrev = 0
@@ -357,8 +383,6 @@ class HuskyCPEnvPathFren(Env):
         
         self.enc_len = 0
         self.arc_dT = 0
-        self.path_track_err = []
-        self.pose_track_err = []
         self.path_err_buff = []
         self.pose_err_buff = []
         self.current_pose = self.sim.getObjectPose(self.HuskyPos, self.sim.handle_world)
@@ -367,9 +391,9 @@ class HuskyCPEnvPathFren(Env):
         #self.intg_pth_err = []
         #self.track_vel = 0.6 + 0.4*np.random.random(size=None)
         
-        #mass_randomizer = np.random.randint(5, size=1)
+        mass_randomizer = np.random.randint(5, size=1)
         #print(mass_randomizer)
-        #mass = 76 + mass_randomizer.item()
+        mass = 76 + mass_randomizer.item()
         #self.sim.setObjectFloatParam(self.COM, self.sim.shapefloatparam_mass , mass)
 
         self.sim.stopSimulation()
@@ -382,7 +406,8 @@ class HuskyCPEnvPathFren(Env):
         # Three objects kept at different locations
         
         rand_spawn = np.random.randint(1, 11, 1, dtype=int)
-        #rand_spawn = 5
+
+        #rand_spawn = 9
         if rand_spawn == 1:
             # Create a rotation object from Euler angles specifying axes of rotation
             rot = Rotation.from_euler('xyz', [0, 0,  self.path1[0,2]], degrees=False)
@@ -511,6 +536,7 @@ class HuskyCPEnvPathFren(Env):
             rot = Rotation.from_euler('xyz', [0, 0, self.path1[l_idx,2]], degrees=False)
             rot_quat = rot.as_quat()
             des_poseQ = np.array([[rot_quat[0],rot_quat[1],rot_quat[2],rot_quat[3]]])
+            ref_kappa = self.path4[icp[0],7]
             #des_poseQ = np.array([self.path1[icp[0],6],self.path1[icp[0],5],self.path1[icp[0],4],self.path1[icp[0],3]])
         elif self.path_selector == 3:
             icp = min(enumerate(self.path2[:,9]), key=lambda x: abs(x[1]-self.ArcLen))
@@ -520,6 +546,7 @@ class HuskyCPEnvPathFren(Env):
             rot = Rotation.from_euler('xyz', [0, 0, self.path2[l_idx,2]], degrees=False)
             rot_quat = rot.as_quat()
             des_poseQ = np.array([[rot_quat[0],rot_quat[1],rot_quat[2],rot_quat[3]]])
+            ref_kappa = self.path4[icp[0],7]
             #des_poseQ = np.array([self.path2[icp[0],6],self.path2[icp[0],5],self.path2[icp[0],4],self.path2[icp[0],3]])
         elif self.path_selector == 5:
             icp = min(enumerate(self.path3[:,9]), key=lambda x: abs(x[1]-self.ArcLen))
@@ -529,6 +556,7 @@ class HuskyCPEnvPathFren(Env):
             rot = Rotation.from_euler('xyz', [0, 0, self.path3[l_idx,2]], degrees=False)
             rot_quat = rot.as_quat()
             des_poseQ =np.array([[rot_quat[0],rot_quat[1],rot_quat[2],rot_quat[3]]])
+            ref_kappa = self.path4[icp[0],7]
             #des_poseQ = np.array([self.path3[icp[0],6],self.path3[icp[0],5],self.path3[icp[0],4],self.path3[icp[0],3]])
         elif self.path_selector == 7:
             icp = min(enumerate(self.path4[:,9]), key=lambda x: abs(x[1]-self.ArcLen))
@@ -538,6 +566,8 @@ class HuskyCPEnvPathFren(Env):
             rot = Rotation.from_euler('xyz', [0, 0, self.path4[l_idx,2]], degrees=False)
             rot_quat = rot.as_quat()
             des_poseQ = np.array([[rot_quat[0],rot_quat[1],rot_quat[2],rot_quat[3]]])
+            ref_kappa = self.path4[icp[0],7]
+            #print(self.log_ref_kappa )
             #des_poseQ = np.array([self.path4[icp[0],6],self.path4[icp[0],5],self.path4[icp[0],4],self.path4[icp[0],3]])
         elif self.path_selector == 9:
             icp = min(enumerate(self.path5[:,9]), key=lambda x: abs(x[1]-self.ArcLen))
@@ -547,6 +577,7 @@ class HuskyCPEnvPathFren(Env):
             rot = Rotation.from_euler('xyz', [0, 0, self.path5[l_idx,2]], degrees=False)
             rot_quat = rot.as_quat()
             des_poseQ = np.array([[rot_quat[0],rot_quat[1],rot_quat[2],rot_quat[3]]])
+            ref_kappa = self.path4[icp[0],7]
         #    des_poseQ = np.array([self.path5[icp[0],6],self.path5[icp[0],5],self.path5[icp[0],4],self.path5[icp[0],3]])
             
 
@@ -558,6 +589,7 @@ class HuskyCPEnvPathFren(Env):
             rot = Rotation.from_euler('xyz', [0, 0, self.path1_[l_idx,2]], degrees=False)
             rot_quat = rot.as_quat()
             des_poseQ = np.array([[rot_quat[0],rot_quat[1],rot_quat[2],rot_quat[3]]])
+            ref_kappa = self.path4[icp[0],7]
             #des_poseQ = np.array([self.path1[icp[0],6],self.path1[icp[0],5],self.path1[icp[0],4],self.path1[icp[0],3]])
         elif self.path_selector == 4:
             icp = min(enumerate(self.path2_[:,9]), key=lambda x: abs(x[1]-self.ArcLen))
@@ -567,6 +599,7 @@ class HuskyCPEnvPathFren(Env):
             rot = Rotation.from_euler('xyz', [0, 0, self.path2_[l_idx,2]], degrees=False)
             rot_quat = rot.as_quat()
             des_poseQ = np.array([[rot_quat[0],rot_quat[1],rot_quat[2],rot_quat[3]]])
+            ref_kappa = self.path4[icp[0],7]
             #des_poseQ = np.array([self.path2[icp[0],6],self.path2[icp[0],5],self.path2[icp[0],4],self.path2[icp[0],3]])
         elif self.path_selector == 6:
             icp = min(enumerate(self.path3_[:,9]), key=lambda x: abs(x[1]-self.ArcLen))
@@ -576,6 +609,7 @@ class HuskyCPEnvPathFren(Env):
             rot = Rotation.from_euler('xyz', [0, 0, self.path3_[l_idx,2]], degrees=False)
             rot_quat = rot.as_quat()
             des_poseQ =np.array([[rot_quat[0],rot_quat[1],rot_quat[2],rot_quat[3]]])
+            ref_kappa = self.path4[icp[0],7]
             #des_poseQ = np.array([self.path3[icp[0],6],self.path3[icp[0],5],self.path3[icp[0],4],self.path3[icp[0],3]])
         elif self.path_selector == 8:
             icp = min(enumerate(self.path4_[:,9]), key=lambda x: abs(x[1]-self.ArcLen))
@@ -585,6 +619,7 @@ class HuskyCPEnvPathFren(Env):
             rot = Rotation.from_euler('xyz', [0, 0, self.path4_[l_idx,2]], degrees=False)
             rot_quat = rot.as_quat()
             des_poseQ = np.array([[rot_quat[0],rot_quat[1],rot_quat[2],rot_quat[3]]])
+            ref_kappa = self.path4[icp[0],7]
             #des_poseQ = np.array([self.path4[icp[0],6],self.path4[icp[0],5],self.path4[icp[0],4],self.path4[icp[0],3]])
         elif self.path_selector == 10:
             icp = min(enumerate(self.path5_[:,9]), key=lambda x: abs(x[1]-self.ArcLen))
@@ -594,17 +629,31 @@ class HuskyCPEnvPathFren(Env):
             rot = Rotation.from_euler('xyz', [0, 0, self.path5_[l_idx,2]], degrees=False)
             rot_quat = rot.as_quat()
             des_poseQ = np.array([[rot_quat[0],rot_quat[1],rot_quat[2],rot_quat[3]]])
+            ref_kappa = self.path4[icp[0],7]
         #    des_poseQ = np.array([self.path5[icp[0],6],self.path5[icp[0],5],self.path5[icp[0],4],self.path5[icp[0],3]])
         
         
-        #self.state_prog(action)
-        #self.path_track_err = np.sqrt(np.square(self.current_pose[0].item()-des_poseX) + np.square(self.current_pose[1].item()-des_poseY))
-        self.path_track_err = np.sqrt(np.square(self.current_pose[0]-des_poseX) + np.square(self.current_pose[1]-des_poseY)) #no S2R
-        #self.path_err_buff.append(self.path_track_err)
+        self.state_prog(action)
+
+        self.log_ref_kappa.append(ref_kappa)
+        self.log_rel_poseX.append(self.current_pose[0])
+        self.log_rel_poseY.append(self.current_pose[1])
+        self.log_ref_poseX.append(des_poseX)
+        self.log_ref_poseY.append(des_poseY)
+
+        #self.log_ref_kappa = ref_kappa
+        #self.log_rel_poseX = self.current_pose[0]
+        #self.log_rel_poseY = self.current_pose[1]
+        #self.log_ref_poseX = des_poseX
+        #self.log_ref_poseY = des_poseY
+
+        self.path_track_err = np.sqrt(np.square(self.current_pose[0].item()-des_poseX) + np.square(self.current_pose[1].item()-des_poseY))
+        #self.path_track_err = np.sqrt(np.square(self.current_pose[0]-des_poseX) + np.square(self.current_pose[1]-des_poseY))
+        self.path_err_buff.append(self.path_track_err)
         #self.pose_track_err = np.arccos(self.curretn_orn@des_poseQ) #
         currentQ = np.array([[self.current_pose[3],self.current_pose[4],self.current_pose[5],self.current_pose[6]]])
         self.pose_track_err = 1- np.dot(des_poseQ,np.transpose(currentQ))
-        #self.pose_err_buff.append(self.pose_track_err)
+        self.pose_err_buff.append(self.pose_track_err)
         #self.intg_pth_err.append(self.path_track_err)
 
         self.current_pose = self.sim.getObjectPose(self.HuskyPos, self.sim.handle_world)
@@ -629,9 +678,9 @@ class HuskyCPEnvPathFren(Env):
 
         body_Vel = np.dot(A,np.array([[action[0].item()],[action[1].item()]]))
         #print(body_Vel.shape)
-
-
-        #update = np.array([[self.prev_pose[0] + self.Xerr],[self.prev_pose[1] + self.Yerr]]) #Add noise to positions based off GPS data
+        
+        
+        update = np.array([[self.prev_pose[0] + self.Xerr],[self.prev_pose[1] + self.Yerr]]) #Add noise to positions based off GPS data
         #update = np.array([[self.prev_pose[0]],[self.prev_pose[1]]])
         #print(update)
         self.current_pose[0] = update[0]
@@ -644,14 +693,19 @@ class HuskyCPEnvPathFren(Env):
     def GenControl(self,action):
 
         ###### Wheel Velocities
+        #self.V_lin = 0.5*action[0] + 0.5
+        #self.Omg_ang = 1*action[1]
 
+        self.V_lin = 0.25*action[0] + 0.75
+        self.log_actV .append(self.V_lin)
+        #self.log_actV = self.V_lin
         
-        #self.V_lin = 0.25*action[0] + 0.75
-        #self.Omg_ang = 0.5*action[1]
-        
-        self.V_lin = 0.5*action[0] + 0.5
-        self.Omg_ang = 1*action[1]
-        
+        # LF
+        #self.Omg_ang = self.V_lin*action[1] 
+        # HF
+        self.Omg_ang = 0.5*action[1] 
+        self.log_actW.append(self.Omg_ang)
+        #self.log_actW = self.Omg_ang
         #camActSet = self.camAngle
 
         # No condition
@@ -757,11 +811,19 @@ class HuskyCPEnvPathFren(Env):
         Rot = np.array([[sRb[0],sRb[1],sRb[2]],[sRb[4],sRb[5],sRb[6]],[sRb[8],sRb[9],sRb[10]]])
         vel_body = np.matmul(np.transpose(Rot),np.array([[linear_vel[0]],[linear_vel[1]],[linear_vel[2]]]))
         realized_vel = np.abs(-1*vel_body[2].item())
-        track_vel = self.track_vel + 0.25*np.sin(0.0025*self.step_no)
+        #print(realized_vel)
+        self.log_rel_vel_lin.append(realized_vel)
+        #self.log_rel_vel_lin = realized_vel
+        disturb = np.clip(-0.25,0.0,0.25*np.sin(self.step_no))
+        track_vel = self.track_vel
+        self.log_ref_vel_lin.append(track_vel)
+        #self.log_ref_vel_lin = track_vel
         #track_vel = self.track_vel
         err_vel = np.abs(track_vel - realized_vel)
-        err_vel = np.clip(err_vel,0,0.5)
-        norm_err_vel = (err_vel - 0)/(0.5) ##   << -------------- Normalized Linear Vel
+        err_vel = np.clip(err_vel,0,1.0)
+        norm_err_vel = (err_vel - 0)/(1.0) ##   << -------------- Normalized Linear Vel
+        self.log_err_vel_norm.append(norm_err_vel)
+        #self.log_err_vel_norm = norm_err_vel
 
         
         # Lane centering reward params
@@ -792,20 +854,24 @@ class HuskyCPEnvPathFren(Env):
 
         # Path Tracking Reward Parameters
         self.arc_length(action) #returns pose tracking aswell
-        err_pth = np.clip(self.path_track_err,0,1)
-        #path_track_arr = self.path_err_buff[-10:]
+        #err_pth = np.clip(self.path_track_err,0,1)
+        path_track_arr = self.path_err_buff[-1:]
         #path_track_arr = np.dot(path_track_arr,np.transpose(path_track_arr))
-        #err_pth = np.clip(path_track_arr,0,10)
+        err_pth = np.clip(path_track_arr,0,1)
         norm_err_path = (err_pth)/1
+        self.log_err_path_norm.append(norm_err_path)
+        #self.log_err_path_norm = norm_err_path
         #print(norm_err_path)
 
         # Pose Tracking Reward Parameters
         #self.arc_length() #returns pose tracking aswell
-        pose_track_err = np.clip(self.pose_track_err,0,1)
-        #pose_track_arr = self.pose_err_buff[-10:]
+        #err_pth = np.clip(self.path_track_err,0,1)
+        pose_track_arr = self.pose_err_buff[-1:]
         #pose_track_arr = np.dot(path_track_arr,np.transpose(path_track_arr))
-        #err_pose = np.clip(pose_track_arr,0,10)
-        norm_err_pose = (pose_track_err)/1
+        err_pose = np.clip(pose_track_arr,0,1)
+        norm_err_pose = (err_pose)/1
+        self.log_err_pose_norm.append(norm_err_pose)
+        #self.log_err_pose_norm = norm_err_pose
         #print(norm_err_pose)
 
         # Minimize curvature reward paramas
@@ -844,45 +910,78 @@ class HuskyCPEnvPathFren(Env):
 
     def Logger(self):
 
-        import os
-        path = '/home/asalvi/code_workspace/Husky_CS_SB3/csv_data/test/'
-        os.makedirs(path, exist_ok=True)
-        specifier = 'vp_' + str(int(100*self.track_vel))
+        specifier = self.specific
 
-        self.log_actV .append(self.V_lin)
-        with open(path + specifier + "_actV", "wb") as fp:   #Pickling
+        import os
+        
+        EvalPath = '/home/asalvi/code_workspace/Husky_CS_SB3/Evaluation/Policies/expTrt/expDump/expDumpAll/'
+        os.makedirs(EvalPath, exist_ok=True)
+        
+        
+        #specifier = 'expTrt0'
+        
+        #ACTIONS
+
+        
+        with open(EvalPath + specifier + "_actV", "wb") as fp:   #Pickling
             pickle.dump(self.log_actV, fp)
         
-        self.log_actW.append(self.Omg_ang)
-        with open(path + specifier + "_actW", "wb") as fp:   #Pickling
-            pickle.dump(self.log_actW, fp)
+        
+        with open(EvalPath + specifier + "_actW", "wb") as fp:   #Pickling
+            pickle.dump(self.log_actW, fp)  
+        
+        # TRACKING OBJECTIVES
+        
+        
+        with open(EvalPath + specifier + "_err_path_norm", "wb") as fp:   #Pickling
+            pickle.dump(self.log_err_path_norm, fp)
+            
+        with open(EvalPath + specifier + "_err_pose_norm", "wb") as fp:   #Pickling
+            pickle.dump(self.log_err_pose_norm, fp)
+           
+        
+        with open(EvalPath + specifier + "_err_vel_norm", "wb") as fp:   #Pickling
+            pickle.dump(self.log_err_vel_norm, fp)
+            
+        # REALIZED VALUES
+            
+        
+        with open(EvalPath + specifier + "_rel_vel_lin", "wb") as fp:   #Pickling
+            pickle.dump(self.log_rel_vel_lin, fp)
+                
+        
+        with open(EvalPath + specifier + "_rel_poseX", "wb") as fp:   #Pickling
+            pickle.dump(self.log_rel_poseX, fp)
+            
+        
+        with open(EvalPath + specifier + "_rel_poseY", "wb") as fp:   #Pickling
+            pickle.dump(self.log_rel_poseY, fp)
+            
+            
+        # REFERENCE VALUES
+        
+        with open(EvalPath + specifier + "_ref_vel_lin", "wb") as fp:   #Pickling
+            pickle.dump(self.log_ref_vel_lin, fp)
+                
+        with open(EvalPath + specifier + "_ref_poseX", "wb") as fp:   #Pickling
+            pickle.dump(self.log_ref_poseX, fp)
+ 
+        with open(EvalPath + specifier + "_ref_poseY", "wb") as fp:   #Pickling
+            pickle.dump(self.log_ref_poseY, fp)
 
-
+        with open(EvalPath + specifier + "_ref_kappa", "wb") as fp:   #Pickling
+            pickle.dump(self.log_ref_kappa, fp)
+        
+        
+        
         '''
-        #Comment in/out depending on training or evaluation
-        
-        ### Data logging
-        
-        path = '/home/asalvi/code_workspace/Husky_CS_SB3/csv_data/vel_perf_all/'
-        specifier = 'vp_' + str(int(100*self.track_vel))
-        
-        
-        
         self.log_err_feat.append(err_track)
         with open(path + specifier + "_err_feat", "wb") as fp:   #Pickling
             pickle.dump(self.log_err_feat, fp)
-        
-        self.log_err_feat_norm.append(norm_err_track)
-        with open(path + specifier + "_err_feat_norm", "wb") as fp:   #Pickling
-            pickle.dump(self.log_err_feat_norm, fp)
 
         self.log_err_vel.append(err_vel)
         with open(path + specifier + "_err_vel", "wb") as fp:   #Pickling
             pickle.dump(self.log_err_vel, fp)
-
-        self.log_err_vel_norm.append(norm_err_vel)
-        with open(path + specifier + "_err_vel_norm", "wb") as fp:   #Pickling
-            pickle.dump(self.log_err_vel_norm, fp)
 
         self.log_err_omega.append(err_effort)
         with open(path + specifier + "_err_omega", "wb") as fp:   #Pickling
@@ -892,22 +991,10 @@ class HuskyCPEnvPathFren(Env):
         with open(path + specifier + "_err_omega_norm", "wb") as fp:   #Pickling
             pickle.dump(self.log_err_vel_norm, fp)
         
-        self.log_rel_vel_lin.append(realized_vel)
-        with open(path + specifier + "_rel_vel_lin", "wb") as fp:   #Pickling
-            pickle.dump(self.log_rel_vel_lin, fp)
         
         self.log_rel_vel_ang.append(Gyro_Z)
         with open(path + specifier + "_rel_vel_ang", "wb") as fp:   #Pickling
             pickle.dump(self.log_rel_vel_ang, fp)
-
-        self.log_actV .append(V)
-        with open(path + specifier + "_actV", "wb") as fp:   #Pickling
-            pickle.dump(self.log_actV, fp)
-        
-        self.log_actW.append(omega)
-        with open(path + specifier + "_actW", "wb") as fp:   #Pickling
-            pickle.dump(self.log_actW, fp)
-        
         '''
 
 

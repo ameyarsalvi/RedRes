@@ -72,7 +72,18 @@ python3 train_parallel.py
 
 ### Evaluation
 
+6. For evaluation of trained models, navigate to the 'evaluation' directory. Within the evaltion directory, update the 'baseEval.py' file to change path to the saved model. Pretrained models used in the paper are availble for download at : 
 
+```
+model_path = '/home/asalvi/code_workspace/Husky_CS_SB3/Evaluation/EvalDump/Bsln/bslns2/bslnCnst.zip'
+```
+7. Once update, open a shell script to run the 'exec.sh' shell script to launch a single CoppeliaSim instant with the training environment.
+
+8. In another shell, run the evaluation script:
+
+```
+python3 baseEval.py
+```
 
 ## Implementation Details
 
