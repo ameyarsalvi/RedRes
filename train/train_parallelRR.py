@@ -26,8 +26,8 @@ import sys
 sys.path.insert(0, "/home/asalvi/code_workspace/Husky_CS_SB3/train/HuskyCP-gym") #Ensure correct path
 import huskyCP_gym
 
-tmp_path = "/home/asalvi/code_workspace/tmp/sb3_log/VisServo/test/" # Path to save logs
-variant = 'test' # Save final model by this name
+tmp_path = "/home/asalvi/code_workspace/tmp/RedRes/4W1C/" # Path to save logs
+variant = '4W1C' # Save final model by this name
 
 # Create log dir
 import os
@@ -35,7 +35,7 @@ import os
 os.makedirs(tmp_path, exist_ok=True)
 new_logger = configure(tmp_path, ["stdout", "csv", "tensorboard"])
 
-total_timesteps = 2e7
+total_timesteps = 5e6
 
 
 # Callback Definitions
@@ -100,7 +100,7 @@ def make_env(env_id, rank, seed=0):
         port_no = str(23004 + 2*rank)
         print(port_no)
         seed = 1 + rank
-        env = gym.make(env_id, port = port_no,seed = seed,track_vel = 0.75)
+        env = gym.make(env_id, port = port_no,seed = seed,track_vel = 2.0,log_option = 0)
         #env.seed(seed + rank)
         return env
     #set_random_seed(seed)
@@ -110,7 +110,7 @@ def make_env(env_id, rank, seed=0):
 
 if __name__ == '__main__':
     env_id = "huskyCP_gym/HuskyRL-v0"
-    num_cpu = 4  # Number of processes to use
+    num_cpu = 16  # Number of processes to use
     # Create the vectorized environment
     env = SubprocVecEnv([make_env(env_id, i) for i in range(num_cpu)], start_method='fork')
     env = VecMonitor(env, filename=tmp_path)

@@ -37,10 +37,10 @@ class GetEnvVar(BaseCallback):
    
 
 # Create environment
-env = gym.make("huskyCP_gym/HuskyRL-v0",port=23004,seed=1,track_vel = 0.75)
+env = gym.make("huskyCP_gym/HuskyRL-v0",port=23004,seed=1,track_vel = 2.0,log_option = 1)
 
 #model_path = '/home/asalvi/Downloads/WP150.zip'
-model_path = '/home/asalvi/code_workspace/Husky_CS_SB3/Evaluation/EvalDump/Bsln/bslns2/bslnCnst.zip'
+model_path = '/home/asalvi/code_workspace/tmp/RedRes/BackupPolicies/4W1C'
 
 model = PPO.load(model_path, env=env, print_system_info=True)
 
