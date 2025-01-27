@@ -15,6 +15,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy, plot_results
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
+from torch.optim import Adam
 
 from stable_baselines3.common.logger import configure
 
@@ -22,12 +23,17 @@ from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize, VecFra
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.utils import set_random_seed
 
+
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+import torch.nn as nn
+import torch
+
 import sys
 sys.path.insert(0, "/home/asalvi/code_workspace/Husky_CS_SB3/train/HuskyCP-gym") #Ensure correct path
 import huskyCP_gym
 
-tmp_path = "/home/asalvi/code_workspace/tmp/RedRes/4W1C/" # Path to save logs
-variant = '4W1C' # Save final model by this name
+tmp_path = "/home/asalvi/code_workspace/tmp/RedRes2/2WD/" # Path to save logs
+variant = '2WD' # Save final model by this name
 
 # Create log dir
 import os
@@ -35,10 +41,80 @@ import os
 os.makedirs(tmp_path, exist_ok=True)
 new_logger = configure(tmp_path, ["stdout", "csv", "tensorboard"])
 
-total_timesteps = 5e6
+total_timesteps = 1e7
 
 
 # Callback Definitions
+
+from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
+import torch.nn as nn
+import torch
+
+class CustomCombinedExtractor(BaseFeaturesExtractor):
+    def __init__(self, observation_space, features_dim=208):
+        super().__init__(observation_space, features_dim)
+
+        # Image processing CNN
+        n_input_channels = observation_space["image"].shape[2]
+        self.cnn = nn.Sequential(
+          nn.Conv2d(n_input_channels, 32, kernel_size=3, stride=2, padding=1),
+          nn.ReLU(),
+          nn.Conv2d(32, 64, kernel_size=3, stride=2, padding=1),
+          nn.ReLU(),
+          nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
+          nn.ReLU(),
+          nn.Flatten()
+      )
+
+        # Calculate CNN output size
+        with torch.no_grad():
+            n_flatten = self.cnn(
+                torch.as_tensor(observation_space["image"].sample()[None]).permute(0, 3, 1, 2).float()
+            ).shape[1]
+
+        '''
+        try:
+            dummy_input = torch.as_tensor(observation_space["image"].sample()[None]).permute(0, 3, 1, 2).float()
+            print("Dummy input shape before passing to CNN:", dummy_input.shape)
+            n_flatten = self.cnn(dummy_input).shape[1]
+            print("CNN output shape:", self.cnn(dummy_input).shape)
+        except Exception as e:
+            print("Error during CNN initialization:", str(e))
+            raise
+        '''
+
+
+        # Fully connected layer for vector input
+        self.fc = nn.Sequential(
+            nn.Linear(observation_space["vector"].shape[0], 16),
+            nn.ReLU()
+        )
+
+        # Combine CNN and vector outputs
+        self.fc_combined = nn.Sequential(
+            nn.Linear(n_flatten + 16, features_dim),
+            nn.ReLU()
+        )
+
+    def forward(self, observations):
+      # Move tensors to the appropriate device (GPU or CPU)
+      device = next(self.cnn.parameters()).device  # Get the device of the model
+      #print("Image shape before permute:", observations["image"].shape)
+      image = observations["image"].to(device).permute(0, 3, 1, 2)  # Move image to device and permute
+      #print("Image shape after permute:", image.shape)
+      vector = observations["vector"].to(device)  # Move vector to device
+
+      # Process image through CNN
+      cnn_out = self.cnn(image)
+
+      # Process vector through fully connected layer
+      vector_out = self.fc(vector)
+
+      # Concatenate and process combined features
+      combined = torch.cat([cnn_out, vector_out], dim=1)
+      return self.fc_combined(combined)
+
+
 
 class SaveOnBestTrainingRewardCallback(BaseCallback):
     """
@@ -115,18 +191,49 @@ if __name__ == '__main__':
     env = SubprocVecEnv([make_env(env_id, i) for i in range(num_cpu)], start_method='fork')
     env = VecMonitor(env, filename=tmp_path)
     env = VecTransposeImage(env, skip=False)
-    env = VecNormalize(env, training=True, norm_obs=False, norm_reward=True, clip_obs=10.0, clip_reward=1000.0, gamma=0.99, epsilon=1e-08, norm_obs_keys=None)
+    env = VecNormalize(env, training=True, norm_obs=True, norm_reward=True, clip_obs=10.0, clip_reward=1000.0, gamma=0.99, epsilon=1e-08, norm_obs_keys=None)
 
 
     best_callback = SaveOnBestTrainingRewardCallback(check_freq=1000, log_dir=tmp_path)
     checkpoint_callback = CheckpointCallback(save_freq=78125,save_path=tmp_path + "checkpoints/",name_prefix=variant,save_replay_buffer=True,save_vecnormalize=True)
     callback = CallbackList([best_callback,checkpoint_callback])
 
-
+    '''
     model = PPO("CnnPolicy", env,learning_rate=0.0001, n_steps=512, batch_size=512, n_epochs=5, ent_coef= 0.005, gamma=0.98, gae_lambda=0.98,
                 clip_range=0.1, vf_coef=0.5, max_grad_norm=0.5,sde_sample_freq=16, 
                 policy_kwargs=dict(normalize_images=True, log_std_init=-1.0,ortho_init=False, activation_fn=nn.ReLU, net_arch=dict(pi=[64], vf=[64])), 
                 verbose=1, tensorboard_log=tmp_path)
+    '''
+
+    model = PPO(
+    "MultiInputPolicy", 
+    env,
+    learning_rate=0.00001, 
+    n_steps=1024, 
+    batch_size=1024, 
+    n_epochs=5, 
+    ent_coef=0.005, 
+    gamma=0.98, 
+    gae_lambda=0.98,
+    clip_range=0.1, 
+    vf_coef=0.5, 
+    max_grad_norm=0.5, 
+    sde_sample_freq=16, 
+    policy_kwargs=dict(
+        features_extractor_class=CustomCombinedExtractor,
+        features_extractor_kwargs=dict(features_dim=256),
+        normalize_images=True,
+        log_std_init=-1.0,
+        ortho_init=False,
+        activation_fn=nn.ReLU,
+        net_arch=dict(pi=[64], vf=[64]),
+        optimizer_class=Adam,  # Use Adam optimizer
+        optimizer_kwargs=dict(weight_decay=1e-4)  # Add L2 regularization here
+    ),
+    verbose=1, 
+    tensorboard_log=tmp_path
+)
+
     
     model.set_logger(new_logger)
     model.learn(total_timesteps, callback=callback, progress_bar= True)

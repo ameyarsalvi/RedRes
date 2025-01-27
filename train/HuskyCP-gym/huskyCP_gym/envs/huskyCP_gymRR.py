@@ -43,11 +43,13 @@ class HuskyCPEnvPathFren(Env):
         self.sim.startSimulation()
         #while self.sim.getSimulationState() == self.sim.simulation_stopped:
 
-        self.specific = '4W1C'
+        self.specific = '2W1C'
 
 
         self.seed = seed
         self.track_vel = track_vel
+        self.track_vel = 1*random.uniform(0, 1) 
+
         #self.throttle = random.randint(1, 20) 
         self.throttle = 1
 
@@ -55,8 +57,8 @@ class HuskyCPEnvPathFren(Env):
         self.cam_err_old = 0
         self.enc_len = 0
 
-        self.Xerr = 0*0.075*random.uniform(0, 1)
-        self.Yerr = 0*0.01*random.uniform(0, 1)
+        self.Xerr = 0*0.001*random.uniform(0, 1)
+        self.Yerr = 0*0.001*random.uniform(0, 1)
         self.ICRx = 0
 
         # Initialize figure and axes for dynamic visualization
@@ -84,7 +86,8 @@ class HuskyCPEnvPathFren(Env):
         
         #Action space def : [Left wheel velocity (rad/s), Right wheel velocity (rad/s)]
         #self.action_space = Box(low=np.array([[-1],[-1],[-1]]), high=np.array([[1],[1],[1]]),dtype=np.float32)
-        #self.action_space = Box(low=np.array([[-1],[-1]]), high=np.array([[1],[1]]),dtype=np.float32)
+        
+        self.action_space = Box(low=np.array([[-1],[-1]]), high=np.array([[1],[1]]),dtype=np.float32)
 
 
         # Three action space : Two wheels and Camera
@@ -94,12 +97,21 @@ class HuskyCPEnvPathFren(Env):
         #self.action_space = Box(low=np.array([[-1],[-1],[-1],[-1]]), high=np.array([[1],[1],[1],[1]]),dtype=np.float32)
 
         # Five action space : Four wheels and Camera
-        self.action_space = Box(low=np.array([[-1],[-1],[-1],[-1],[-1]]), high=np.array([[1],[1],[1],[1],[1]]),dtype=np.float32)
+        #self.action_space = Box(low=np.array([[-1],[-1],[-1]]), high=np.array([[1],[1],[1]]),dtype=np.float32)
+
+        ############ Testing with Dictionary Observation ##############################
+        # Define the observation space
+        self.observation_space = Dict({
+            "image": Box(low=0, high=255, shape=(96, 320, 1), dtype=np.uint8),  # Image observation
+            "vector": Box(low=-np.inf, high=np.inf, shape=(6,), dtype=np.float32)  # Additional vector of 5 values
+        })
+        #print("Sample observation shape:", self.observation_space["image"].sample().shape)
+
         
 
         # Observation shape definition : [Image pixels of size 64x256x1]
         #self.observation_space = Box(low=np.array([[-1000],[-1000],[-1000],[-1000]]), high=np.array([[1000],[1000],[1000],[1000]]),dtype=np.float32)
-        self.observation_space = Box(low=0, high=255,shape=(96,320,1),dtype=np.uint8)
+        #self.observation_space = Box(low=0, high=255,shape=(96,320,1),dtype=np.uint8)
 
         '''
         self.observation_space = Dict(
@@ -186,10 +198,10 @@ class HuskyCPEnvPathFren(Env):
 
         
         # Four Redundancy Resolution Control
-        Fl_w = 4*action[0] + 8
-        Fr_w = 4*action[1] + 8
-        Rl_w = 4*action[2] + 8
-        Rr_w = 4*action[3] + 8
+        Fl_w = 3*action[0] + 3
+        Fr_w = 3*action[1] + 3
+        Rl_w = 3*action[0] + 3
+        Rr_w = 3*action[1] + 3
         
         #Joint Velocities similar to how velocities are set on actual robot
         self.sim.setJointTargetVelocity(self.fl_w, Fl_w.item())
@@ -203,8 +215,8 @@ class HuskyCPEnvPathFren(Env):
         #cam_angle = np.clip(cam_angle,-45,45)
 
         #self.sim.setJointPosition(self.CameraJoint, self.camActRel)
-        #cam_ang = np.array([0])
-        cam_ang = 45*action[4]
+        cam_ang = np.array([0])
+        #cam_ang = 45*action[2]
         self.sim.setJointPosition(self.CameraJoint, cam_ang.item()*math.pi/180)
 
 
@@ -241,16 +253,33 @@ class HuskyCPEnvPathFren(Env):
                 self.enc_len = 1
                 self.arc_dT =  0
             else:
-                self.enc_len = self.enc_len + self.arc_dT
+                #self.enc_len = self.enc_len + self.arc_dT
+                self.enc_len = self.enc_len + 1
                 pass
         
 
         #print(self.enc_len)
-        self.enc_len_div = 1*self.enc_len
-        self.enc_len_div = np.clip(self.enc_len_div,1,65)
+        #self.enc_len_div = 1*self.enc_len
+        #self.enc_len_div = np.clip(self.enc_len_div,1,65)
         img_obs = self.img_obs
 
-        self.state = np.array(img_obs,dtype = np.uint8) #Just input image to CNN network
+        realized_vel, err_effort = self.getTwist(action)
+
+        # Generate additional vector data (replace this with your actual data)
+        additional_info = np.array([realized_vel,
+                                    err_effort,
+                                    self.enc_len,
+                                    self.Xerr,  # X position
+                                    self.Yerr,  # Y position
+                                    self.track_vel],  # Z position
+                                dtype=np.float32)
+
+        #self.state = np.array(img_obs,dtype = np.uint8) #Just input image to CNN network
+        # Combine into a dictionary observation
+        self.state = {
+            "image": np.array(img_obs, dtype=np.uint8),
+            "vector": additional_info
+        }
 
         self.getReward(action)
         reward = self.rew
@@ -310,6 +339,10 @@ class HuskyCPEnvPathFren(Env):
         self.path_err_buff = []
         self.pose_err_buff = []
         self.current_pose = self.sim.getObjectPose(self.HuskyPos, self.sim.handle_world)
+        self.Xerr = 0*0.001*random.uniform(0, 1)
+        self.Yerr = 0*0.001*random.uniform(0, 1)
+
+        
 
 
         #self.intg_pth_err = []
@@ -426,6 +459,19 @@ class HuskyCPEnvPathFren(Env):
         self.img = np.frombuffer(img, dtype=np.uint8).reshape(resY, resX, 3)
         self.img_preprocess()
         img_obs = self.obs
+
+        #realized_vel, err_effort = self.getTwist(action)
+
+        # Generate additional vector data (replace this with your actual data)
+        additional_info = np.array([0,
+                                    0,
+                                    1,
+                                    self.Xerr,  # X position
+                                    self.Yerr,  # Y position
+                                    self.track_vel],  # Z position
+                                dtype=np.float32)
+        
+
         #img_obs = np.divide(img_obs,2)
         
 
@@ -433,7 +479,12 @@ class HuskyCPEnvPathFren(Env):
         #Send observation for learning
         #self.state['image'] = np.array(img_obs,dtype = np.uint8)
         #self.state['camera_angle'] = np.array(0.5,dtype = np.uint8)
-        self.state = np.array(img_obs,dtype = np.uint8) #Just input image to CNN network
+        #self.state = np.array(img_obs,dtype = np.uint8) #Just input image to CNN network
+        # Combine into a dictionary observation
+        self.state = {
+            "image": np.array(img_obs, dtype=np.uint8),
+            "vector": additional_info
+        }
         
         info = {}
 
@@ -592,11 +643,21 @@ class HuskyCPEnvPathFren(Env):
     def check_bonunds(self):
 
         self.current_pose = self.sim.getObjectPose(self.HuskyPos, self.sim.handle_world)
-
+        '''
+        print(self.current_pose)
+        update = np.array([[self.prev_pose[0] + self.Xerr],[self.prev_pose[1] + self.Yerr]]) #Add noise to positions based off GPS data
+        self.current_pose[0] = update[0]
+        print(self.current_pose[0])
+        self.current_pose[1] = update[1]
+        print(self.current_pose[1])
+        '''
         dataL = np.array([self.pathL[:,0], self.pathL[:,1]]).T
 
+        
         # Ensure the point is a 1D array (shape: (2,))
-        point = np.array([self.current_pose[0], self.current_pose[1]])
+        #point = np.array([self.current_pose[0], self.current_pose[1]])
+        point = np.array([self.current_pose[0]+ self.Xerr, self.current_pose[1]+ self.Yerr])
+        #print(point)
 
         # Calculate the Euclidean distance for each row
         distances = np.linalg.norm(dataL - point, axis=1)
@@ -650,13 +711,22 @@ class HuskyCPEnvPathFren(Env):
         # Create a Shapely Polygon
         polygon = Polygon(poly_pts)
 
+        # Shrink the polygon inward by 30 cm
+        conservative_polygon = polygon.buffer(-0.30)
+
+        # Validate the conservative polygon
+        if conservative_polygon.is_valid and not conservative_polygon.is_empty:
+            polygon = conservative_polygon
+        else:
+            print("Error: Conservative polygon is invalid or empty.")
+
         point = Point([self.current_pose[0],self.current_pose[1]])
 
         # Check if the point is inside the polygon
-        is_inside = polygon.contains(point)
+        is_inside = conservative_polygon.contains(point)
 
         # Visualize dynamically
-        self.fig, self.ax = self.visualize_dynamic(polygon, point, is_inside, self.fig, self.ax)
+        #self.fig, self.ax = self.visualize_dynamic(polygon, point, is_inside, self.fig, self.ax)
 
         # Output the result
         if is_inside:
@@ -808,8 +878,27 @@ class HuskyCPEnvPathFren(Env):
         else:
             self.cX, self.cY = 0, 0
 
+    def getTwist(self,action):
 
-    def getReward(self,action):
+        linear_vel, angular_vel = self.sim.getVelocity(self.COM)
+        sRb = self.sim.getObjectMatrix(self.COM,self.sim.handle_world)
+        Rot = np.array([[sRb[0],sRb[1],sRb[2]],[sRb[4],sRb[5],sRb[6]],[sRb[8],sRb[9],sRb[10]]])
+        vel_body = np.matmul(np.transpose(Rot),np.array([[linear_vel[0]],[linear_vel[1]],[linear_vel[2]]]))
+        realized_vel = np.abs(-1*vel_body[2].item())
+
+        # Angular velocity reward params
+        Gyro_Z = self.sim.getFloatSignal("myGyroData_angZ")
+        if Gyro_Z:
+            err_effort = -1*np.abs(Gyro_Z) 
+        else:
+            err_effort = np.abs(0)    
+
+        return realized_vel, err_effort
+
+
+    def getReward(self,action): 
+
+
 
      # Calculate Reward
         '''
@@ -820,13 +909,16 @@ class HuskyCPEnvPathFren(Env):
         '''
 
         # Linear velocity reward params
-
+        '''
         linear_vel, angular_vel = self.sim.getVelocity(self.COM)
         sRb = self.sim.getObjectMatrix(self.COM,self.sim.handle_world)
         Rot = np.array([[sRb[0],sRb[1],sRb[2]],[sRb[4],sRb[5],sRb[6]],[sRb[8],sRb[9],sRb[10]]])
         vel_body = np.matmul(np.transpose(Rot),np.array([[linear_vel[0]],[linear_vel[1]],[linear_vel[2]]]))
         realized_vel = np.abs(-1*vel_body[2].item())
+        '''
         #print(realized_vel)
+
+        realized_vel, err_effort = self.getTwist(action)
         self.log_rel_vel_lin.append(realized_vel)
         #self.log_rel_vel_lin = realized_vel
         disturb = np.clip(-0.25,0.0,0.25*np.sin(self.step_no))
@@ -858,7 +950,7 @@ class HuskyCPEnvPathFren(Env):
         pix_sum = np.sum(self.obs)
         pix_sum = pix_sum/(255*96*320)
         '''
-
+        '''
         # Angular velocity reward params
         Gyro_Z = self.sim.getFloatSignal("myGyroData_angZ")
         if Gyro_Z:
@@ -866,6 +958,7 @@ class HuskyCPEnvPathFren(Env):
         else:
             err_effort = np.abs(0)     
         #norm_err_eff = (np.abs(self.Omg_ang))/0.5 ##   << -------------- Normalized angular velocity
+        '''
 
         # Path Tracking Reward Parameters
         #self.arc_length(action) #returns pose tracking aswell
@@ -910,20 +1003,20 @@ class HuskyCPEnvPathFren(Env):
         act1_eff = action[1] - self.act1_prev
         norm_act1_eff = abs(act1_eff)/2
 
-        act2_eff = action[2] - self.act2_prev
-        norm_act2_eff = abs(act2_eff)/2
+        #act2_eff = action[2] - self.act2_prev
+        #norm_act2_eff = abs(act2_eff)/2
 
-        act3_eff = action[3] - self.act3_prev
-        norm_act3_eff = abs(act3_eff)/2
+        #act3_eff = action[3] - self.act3_prev
+        #norm_act3_eff = abs(act3_eff)/2
 
-        act4_eff = action[4] - self.act4_prev
-        norm_act4_eff = abs(act4_eff)/2
+        #act4_eff = action[4] - self.act4_prev
+        #norm_act4_eff = abs(act4_eff)/2
         
         self.act0_prev =action[0]
         self.act1_prev =action[1]
-        self.act2_prev =action[2]
-        self.act3_prev =action[3]
-        self.act4_prev =action[4]
+        #self.act2_prev =action[2]
+        #self.act3_prev =action[3]
+        #self.act4_prev =action[4]
 
         # Total reward
         #Rew for HF
@@ -934,13 +1027,13 @@ class HuskyCPEnvPathFren(Env):
         #self.rew =(1-norm_act0_eff)**2 + (1-norm_act1_eff)**2 + (1 - norm_err_vel)**2 + (1- norm_err_path)**2 + (1 - norm_err_pose)**2
         
         #2w
-        #self.rew =(1-norm_act0_eff)**2 + (1-norm_act1_eff)**2 + (1 - norm_err_vel)**2
+        self.rew =(1-norm_act0_eff)**2 + (1-norm_act1_eff)**2 + (1 - norm_err_vel)**2
         #2w1c
         #self.rew =(1-norm_act0_eff)**2 + (1-norm_act1_eff)**2 + (1-norm_act2_eff)**2  + (1 - norm_err_vel)**2
         #4W 
         #self.rew =(1-norm_act0_eff)**2 + (1-norm_act1_eff)**2 + (1-norm_act2_eff)**2 + (1-norm_act3_eff)**2  + (1 - norm_err_vel)**2
         #4W1C
-        self.rew =(1-norm_act0_eff)**2 + (1-norm_act1_eff)**2 + (1-norm_act2_eff)**2 + (1-norm_act3_eff)**2 + (1-norm_act4_eff)**2 + (1 - norm_err_vel)**2
+        #self.rew =(1-norm_act0_eff)**2 + (1-norm_act1_eff)**2 + (1-norm_act2_eff)**2 + (1 - norm_err_vel)**2
 
 
         self.rew = np.float64(self.rew)
