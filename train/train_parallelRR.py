@@ -32,8 +32,8 @@ import sys
 sys.path.insert(0, "/home/asalvi/code_workspace/Husky_CS_SB3/train/HuskyCP-gym") #Ensure correct path
 import huskyCP_gym
 
-tmp_path = "/home/asalvi/code_workspace/tmp/RedRes2/2WD/" # Path to save logs
-variant = '2WD' # Save final model by this name
+tmp_path = "/home/asalvi/code_workspace/tmp/RedRes2/2WE/" # Path to save logs
+variant = '2WE' # Save final model by this name
 
 # Create log dir
 import os
@@ -176,7 +176,7 @@ def make_env(env_id, rank, seed=0):
         port_no = str(23004 + 2*rank)
         print(port_no)
         seed = 1 + rank
-        env = gym.make(env_id, port = port_no,seed = seed,track_vel = 2.0,log_option = 0)
+        env = gym.make(env_id, port = port_no,seed = seed,track_vel = 0.75,log_option = 0)
         #env.seed(seed + rank)
         return env
     #set_random_seed(seed)
@@ -209,8 +209,8 @@ if __name__ == '__main__':
     "MultiInputPolicy", 
     env,
     learning_rate=0.00001, 
-    n_steps=1024, 
-    batch_size=1024, 
+    n_steps=512, 
+    batch_size=512, 
     n_epochs=5, 
     ent_coef=0.005, 
     gamma=0.98, 
@@ -221,7 +221,7 @@ if __name__ == '__main__':
     sde_sample_freq=16, 
     policy_kwargs=dict(
         features_extractor_class=CustomCombinedExtractor,
-        features_extractor_kwargs=dict(features_dim=256),
+        features_extractor_kwargs=dict(features_dim=208),
         normalize_images=True,
         log_std_init=-1.0,
         ortho_init=False,

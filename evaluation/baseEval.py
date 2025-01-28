@@ -12,6 +12,7 @@ from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.results_plotter import load_results, ts2xy, plot_results
 from stable_baselines3.common.callbacks import BaseCallback
 from stable_baselines3.common.callbacks import CheckpointCallback, EveryNTimesteps
+from stable_baselines3.common.vec_env import SubprocVecEnv, VecNormalize, VecFrameStack, VecTransposeImage, stacked_observations, VecMonitor
 
 import sys
 sys.path.insert(0, "/home/asalvi/code_workspace/Husky_CS_SB3/train/HuskyCP-gym")
@@ -34,13 +35,38 @@ class GetEnvVar(BaseCallback):
         #self.logger.record("random_value", value)
         print(value0)
         #return value
-   
 
+def make_env(env_id, rank, seed=0):
+    """
+    Utility function for multiprocessed env.
+
+    :param env_id: (str) the environment ID
+    :param num_env: (int) the number of environments you wish to have in subprocesses
+    :param seed: (int) the inital seed for RNG
+    :param rank: (int) index of the subprocess
+    """
+    def _init():
+        port_no = str(23004 + 2*rank)
+        print(port_no)
+        seed = 1 + rank
+        env = gym.make(env_id, port = port_no,seed = seed,track_vel = 0.75,log_option = 0)
+        #env.seed(seed + rank)
+        return env
+    #set_random_seed(seed)
+    return _init
+   
+tmp_path = "/home/asalvi/code_workspace/tmp/RedRes2/2WE/Eval" # Path to save logs
 # Create environment
-env = gym.make("huskyCP_gym/HuskyRL-v0",port=23004,seed=1,track_vel = 2.0,log_option = 1)
+#env = gym.make("huskyCP_gym/HuskyRL-v0",port=23004,seed=1,track_vel = 0.75,log_option = 0)
+env_id = "huskyCP_gym/HuskyRL-v0"
+num_cpu = 1  # Number of processes to use
+env = SubprocVecEnv([make_env(env_id, i) for i in range(num_cpu)], start_method='fork')
+env = VecMonitor(env, filename=tmp_path)
+env = VecTransposeImage(env, skip=False)
+env = VecNormalize(env, training=True, norm_obs=True, norm_reward=True, clip_obs=10.0, clip_reward=1000.0, gamma=0.99, epsilon=1e-08, norm_obs_keys=None)
 
 #model_path = '/home/asalvi/Downloads/WP150.zip'
-model_path = '/home/asalvi/code_workspace/tmp/RedRes/BackupPolicies/4W1C'
+model_path = '/home/asalvi/code_workspace/tmp/RedRes2/2WE/2WE'
 
 model = PPO.load(model_path, env=env, print_system_info=True)
 
