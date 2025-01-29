@@ -20,7 +20,7 @@ Characterize realized trajectory from the metrics of (i)velcoity tracking, and, 
 
 
 
-Date : Jan 28, 2024
+## Date : Jan 28, 2024
 
 Baseline policy trained
 1. Policy trained only for tracking velocity with following Reward :
@@ -37,7 +37,7 @@ self.track_vel = -0.4*np.sin(velCoeff)
 
 
 
-Date : Jan 29, 2024
+## Date : Jan 29, 2024
 
 1. Policy trained tracking velocity with following Reward :
 
