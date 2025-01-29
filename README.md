@@ -31,7 +31,6 @@ where :
 
 ```
 self.track_vel = -0.4*np.sin(self.velCoeff*0.05*self.step_no) + 0.5
-self.track_vel = -0.4*np.sin(velCoeff)
 self.velCoeff = random.uniform(0.314,0.157)
 ```
 The velcoeff ensurs the peak for the sine vel tracking occurs at t =5s to t=10s
@@ -50,7 +49,6 @@ where :
 
 ```
 self.track_vel = -0.4*np.sin(self.velCoeff*0.05*self.step_no) + 0.5
-self.track_vel = -0.4*np.sin(velCoeff)
 self.velCoeff = random.uniform(0.314,0.157)
 ```
 The velcoeff ensurs the peak for the sine vel tracking occurs at t =5s to t=10s
