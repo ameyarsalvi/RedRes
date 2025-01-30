@@ -47,18 +47,21 @@ class HuskyCPEnvPathFren(Env):
 
 
         self.seed = seed
-        self.track_vel = track_vel
-        self.track_vel = 1*random.uniform(0, 1) 
+        #self.track_vel = track_vel
+        self.velCoeff = random.uniform(0.314,0.157)
+        #self.velCoeff = 0.314
+        #self.track_vel = -0.4*np.sin(velCoeff)
 
-        #self.throttle = random.randint(1, 20) 
-        self.throttle = 1
+        self.throttle = 10*random.randint(1, 10) 
+        #self.throttle = 1
 
         self.flw_vel = 0
         self.cam_err_old = 0
         self.enc_len = 0
 
-        self.Xerr = 0*0.001*random.uniform(0, 1)
-        self.Yerr = 0*0.001*random.uniform(0, 1)
+        self.uncPar = random.uniform(1,10)
+        self.Xerr = 0.01*random.uniform(0, 1)
+        self.Yerr = 0.01*random.uniform(0, 1)
         self.ICRx = 0
 
         # Initialize figure and axes for dynamic visualization
@@ -198,10 +201,10 @@ class HuskyCPEnvPathFren(Env):
 
         
         # Four Redundancy Resolution Control
-        Fl_w = 3*action[0] + 3
-        Fr_w = 3*action[1] + 3
-        Rl_w = 3*action[0] + 3
-        Rr_w = 3*action[1] + 3
+        Fl_w = 3*action[0] + 3.5
+        Fr_w = 3*action[1] + 3.5
+        Rl_w = 3*action[0] + 3.5
+        Rr_w = 3*action[1] + 3.5
         
         #Joint Velocities similar to how velocities are set on actual robot
         self.sim.setJointTargetVelocity(self.fl_w, Fl_w.item())
@@ -256,13 +259,13 @@ class HuskyCPEnvPathFren(Env):
                 #self.enc_len = self.enc_len + self.arc_dT
                 self.enc_len = self.enc_len + 1
                 pass
-        
 
         #print(self.enc_len)
         #self.enc_len_div = 1*self.enc_len
         #self.enc_len_div = np.clip(self.enc_len_div,1,65)
         img_obs = self.img_obs
-
+        self.track_vel = -0.4*np.sin(self.velCoeff*0.05*self.step_no) + 0.5
+        #self.track_vel = 0.75
         realized_vel, err_effort = self.getTwist(action)
 
         # Generate additional vector data (replace this with your actual data)
@@ -338,9 +341,16 @@ class HuskyCPEnvPathFren(Env):
         self.arc_dT = 0
         self.path_err_buff = []
         self.pose_err_buff = []
+
+        self.throttle = 10*random.randint(1, 10) 
+
+        self.velCoeff = random.uniform(0.314,0.157)
         self.current_pose = self.sim.getObjectPose(self.HuskyPos, self.sim.handle_world)
-        self.Xerr = 0*0.001*random.uniform(0, 1)
-        self.Yerr = 0*0.001*random.uniform(0, 1)
+        self.Xerr = 0.01*random.uniform(0, 1)
+        self.Yerr = 0.01*random.uniform(0, 1)
+
+        track_vel = -0.4*np.sin(self.velCoeff*0.05*self.step_no) + 0.5
+        self.track_vel = track_vel
 
         
 
@@ -461,6 +471,7 @@ class HuskyCPEnvPathFren(Env):
         img_obs = self.obs
 
         #realized_vel, err_effort = self.getTwist(action)
+        
 
         # Generate additional vector data (replace this with your actual data)
         additional_info = np.array([0,
@@ -921,7 +932,7 @@ class HuskyCPEnvPathFren(Env):
         realized_vel, err_effort = self.getTwist(action)
         self.log_rel_vel_lin.append(realized_vel)
         #self.log_rel_vel_lin = realized_vel
-        disturb = np.clip(-0.25,0.0,0.25*np.sin(self.step_no))
+        #disturb = np.clip(-0.25,0.0,0.25*np.sin(self.step_no))
         track_vel = self.track_vel
         #self.log_ref_vel_lin.append(track_vel)
         #self.log_ref_vel_lin = track_vel
@@ -1027,7 +1038,7 @@ class HuskyCPEnvPathFren(Env):
         #self.rew =(1-norm_act0_eff)**2 + (1-norm_act1_eff)**2 + (1 - norm_err_vel)**2 + (1- norm_err_path)**2 + (1 - norm_err_pose)**2
         
         #2w
-        self.rew =(1-norm_act0_eff)**2 + (1-norm_act1_eff)**2 + (1 - norm_err_vel)**2
+        self.rew =(1-norm_act0_eff)**2 + (1-norm_act1_eff)**2 + 10*(1 - norm_err_vel)**2
         #2w1c
         #self.rew =(1-norm_act0_eff)**2 + (1-norm_act1_eff)**2 + (1-norm_act2_eff)**2  + (1 - norm_err_vel)**2
         #4W 
