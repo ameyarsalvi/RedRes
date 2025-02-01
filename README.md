@@ -96,4 +96,39 @@ Varying the refresh rate between 0.5s to 5s
 
 4. Policy saved as : 2WsUnTr
 
+## Date : Feb 1, 2025 (Baseline + Positionaly Uncertainty + Sensor Dropout) > Camera Motion
+
+1. Policy trained tracking velocity with following Reward :
+
+` self.rew =(1-norm_act0_eff)**2 + (1-norm_act1_eff)**2 + (1-norm_act2_eff)**2 + 10*(1 - norm_err_vel)**2 `
+
+where : 
+
+```
+self.track_vel = -0.4*np.sin(self.velCoeff*0.05*self.step_no) + 0.5
+self.velCoeff = random.uniform(0.314,0.157)
+```
+The velcoeff ensurs the peak for the sine vel tracking occurs at t =5s to t=10s
+
+2. New training introduces uncertainity in state transitions modeled as :
+
+```
+self.Xerr = 0.01*random.uniform(0, 1)
+self.Yerr = 0.01*random.uniform(0, 1)
+```
+
+The uncertainty is introduced for `point = np.array([self.current_pose[0]+ self.Xerr, self.current_pose[1]+ self.Yerr])` to verify in noisy pose is inside bounds
+
+3. Updated training now introduces sensor dropout for image sensor modeled as :
+```
+self.throttle = 10*random.randint(1, 10) 
+```
+Varying the refresh rate between 0.5s to 5s
+
+4. Camera motion is introduce as an action as `cam_ang = 45*action[2]` . The New environment file is also has additional C : huskyCP_gymRRC
+
+5. Policy saved as : 2WsUnTrCb
+
+Note : This variant seems unsuccessful but shows increasing reward trends when the training terminated.
+Plans to retrain three variants bootstrapping off the policies at 8.5mil steps.
 
