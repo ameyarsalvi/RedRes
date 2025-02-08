@@ -132,7 +132,7 @@ Varying the refresh rate between 0.5s to 5s
 Note : This variant seems unsuccessful but shows increasing reward trends when the training terminated.
 Plans to retrain three variants bootstrapping off the policies at 8.5mil steps.
 
-## Date : Feb 1, 2025 (Baseline + Positionaly Uncertainty + Sensor Dropout) > Camera Motion (Continued Training)
+## Date : Feb 8, 2025 (Baseline + Positionaly Uncertainty + Sensor Dropout) > Camera Motion (Continued Training)
 
 1. Policy trained tracking velocity with following Reward :
 
