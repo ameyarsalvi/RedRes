@@ -66,7 +66,7 @@ env = VecTransposeImage(env, skip=False)
 env = VecNormalize(env, training=True, norm_obs=True, norm_reward=True, clip_obs=10.0, clip_reward=1000.0, gamma=0.99, epsilon=1e-08, norm_obs_keys=None)
 
 #model_path = '/home/asalvi/Downloads/WP150.zip'
-model_path = '/home/asalvi/code_workspace/tmp/RedRes2/2WsUnTrC/best.zip'
+model_path = '/home/asalvi/code_workspace/tmp/RedRes2/2WsUnTr/2WsUnTr.zip'
 
 model = PPO.load(model_path, env=env, print_system_info=True)
 
