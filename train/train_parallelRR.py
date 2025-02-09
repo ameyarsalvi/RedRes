@@ -32,8 +32,8 @@ import sys
 sys.path.insert(0, "/home/asalvi/code_workspace/Husky_CS_SB3/train/HuskyCP-gym") #Ensure correct path
 import huskyCP_gym
 
-tmp_path = "/home/asalvi/code_workspace/tmp/RedRes2/2WsUnTrCb/2WsUnTrCb" # Path to save logs
-variant = '2WsUnTrCb' # Save final model by this name
+tmp_path = "/home/asalvi/code_workspace/tmp/RedRes2/2WsUnTrCb/2WsUnTrCc" # Path to save logs
+variant = '2WsUnTrCc' # Save final model by this name
 
 # Create log dir
 import os

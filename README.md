@@ -169,3 +169,41 @@ Varying the refresh rate between 0.5s to 5s
 
 Note : New attempt will try to address the above problem by elimination of effort penalty for camera action. This will ensure exactly same rewards for all the policies.
 
+## Date : Feb 9, 2025 (Baseline + Positionaly Uncertainty + Sensor Dropout) -- updated reward
+
+1. Policy trained tracking velocity with following Reward. Obsereve reward is different from prior with getting rid of penalty for camera action effort :
+
+` self.rew =(1-norm_act0_eff)**2 + (1-norm_act1_eff)**2 + 10*(1 - norm_err_vel)**2 `
+
+where : 
+
+```
+self.track_vel = -0.4*np.sin(self.velCoeff*0.05*self.step_no) + 0.5
+self.velCoeff = random.uniform(0.314,0.157)
+```
+The velcoeff ensurs the peak for the sine vel tracking occurs at t =5s to t=10s
+
+2. New training introduces uncertainity in state transitions modeled as :
+
+```
+self.Xerr = 0.01*random.uniform(0, 1)
+self.Yerr = 0.01*random.uniform(0, 1)
+```
+
+The uncertainty is introduced for `point = np.array([self.current_pose[0]+ self.Xerr, self.current_pose[1]+ self.Yerr])` to verify in noisy pose is inside bounds
+
+3. Updated training now introduces sensor dropout for image sensor modeled as :
+```
+self.throttle = 10*random.randint(1, 10) 
+```
+Varying the refresh rate between 0.5s to 5s
+
+4. Camera motion is introduce as an action as `cam_ang = 45*action[2]` . The New environment file is also has additional C : huskyCP_gymRRC
+
+5. Policy trained for 11.5 mil more steps and thus a total of 2e7 steps. Policy still uncessful. The policy freezes the camera angle to -45 Degress and tries to move the robot. 
+
+6. Policy saved as : 2WsUnTrCc
+
+Note : This was a complete failure with the agent barely learning anything. The next trial will be to avoid throttle to see if having camera motion makes a difference at all.
+
+
